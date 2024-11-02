@@ -5,8 +5,8 @@
 int LED_BUILTIN = 2;
 
 #define IR_SENSOR_PIN 36
-#define TRIG_US_SENSOR_PIN 32
-#define ECHO_US_SENSOR_PIN 39
+#define TRIG_US_SENSOR_PIN 25
+#define ECHO_US_SENSOR_PIN 26
 
 DS3231 rtc;
 BMP280 bmp;
@@ -31,18 +31,19 @@ void loop() {
   }
 
   DateTime dt = RTClib::now();
-  Serial.println(dt.second());
+  // Serial.println(dt.second());
 
   // uint32_t pressure = bmp.getPressure();
   // Serial.println(pressure);
 
   digitalWrite(TRIG_US_SENSOR_PIN, LOW);
-  delay(2);
+  delayMicroseconds(2);
   digitalWrite(TRIG_US_SENSOR_PIN, HIGH);
-  delay(10);
+  delayMicroseconds(10);
   digitalWrite(TRIG_US_SENSOR_PIN, LOW);
-  int duration = analogRead(ECHO_US_SENSOR_PIN);
+  int duration = pulseIn(ECHO_US_SENSOR_PIN, HIGH);
   int distance = duration * 0.034 / 2;
+  Serial.println(duration);
   Serial.println("Distance: " + String(distance) + " cm");
 
   delay(500);
