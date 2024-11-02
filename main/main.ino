@@ -1,17 +1,24 @@
 #include <Wire.h>
 #include <DS3231.h>
+#include <BMP280.h>
 
 int LED_BUILTIN = 2;
 
 #define IR_SENSOR_PIN 36
+#define TRIG_US_SENSOR_PIN 32
+#define ECHO_US_SENSOR_PIN 39
 
 DS3231 rtc;
+BMP280 bmp;
 
 void setup() {
   // pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(115200);
   Serial.println("Hello from ESP32!");
+  pinMode(TRIG_US_SENSOR_PIN, OUTPUT);
+  pinMode(ECHO_US_SENSOR_PIN, INPUT);
   Wire.begin(); 
+  //bmp.begin();
 }
 
 void loop() {
@@ -25,6 +32,18 @@ void loop() {
 
   DateTime dt = RTClib::now();
   Serial.println(dt.second());
+
+  // uint32_t pressure = bmp.getPressure();
+  // Serial.println(pressure);
+
+  digitalWrite(TRIG_US_SENSOR_PIN, LOW);
+  delay(2);
+  digitalWrite(TRIG_US_SENSOR_PIN, HIGH);
+  delay(10);
+  digitalWrite(TRIG_US_SENSOR_PIN, LOW);
+  int duration = analogRead(ECHO_US_SENSOR_PIN);
+  int distance = duration * 0.034 / 2;
+  Serial.println("Distance: " + String(distance) + " cm");
 
   delay(500);
 }
