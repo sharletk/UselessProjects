@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>ESP32 Data Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 {
+      font-size: 1.5em;
+      margin: 10px 0;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .status-container {
+      display: flex;
+      justify-content: space-around;
+      width: 100%;
+      margin: 10px 0;
+      flex-wrap: wrap; /* Allow wrapping on smaller screens */
+    }
+    .status {
+      font-size: 1em;
+      margin: 5px;
+      flex: 1; /* Grow/shrink as needed */
+      min-width: 120px; /* Minimum width for each status item */
+    }
+    .ir-status span {
+      padding: 5px 10px;
+      border-radius: 5px;
+    }
+    .ir-status .far { background-color: green; color: white; }
+    .ir-status .close { background-color: red; color: white; }
+    canvas {
+      max-width: 100%;
+      height: 150px; /* Adjusted height for chart */
+    }
+  </style>
+</head>
+<body>
+  <h1>Monitor Dashboard</h1>
+  <div class="container">
+    <div class="status-container">
+      <div class="status">Date: <span id="date"></span></div>
+      <div class="status">Time: <span id="time"></span></div>
+      <div class="status">Distance: <span id="distance"></span> cm</div>
+      <div class="status ir-status">IR Status: <span id="ir-status">Far</span></div>
+    </div>
+    <canvas id="gyroChart" width="400" height="150"></canvas>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Initialize WebSocket connection
+    const socket = new WebSocket(`ws://${window.location.host}`);
+    
+    // Update UI elements
+    const timeDisplay = document.getElementById('time');
+    const dateDisplay = document.getElementById('date');
+    const distanceDisplay = document.getElementById('distance');
+    const irStatus = document.getElementById('ir-status');
+
+    // Chart configuration
+    const ctx = document.getElementById('gyroChart').getContext('2d');
+    const gyroChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [],
+        datasets: [
+          { label: 'X-axis', data: [], borderColor: 'red', fill: false },
+          { label: 'Y-axis', data: [], borderColor: 'green', fill: false },
+          { label: 'Z-axis', data: [], borderColor: 'blue', fill: false }
+        ]
+      },
+      options: {
+        scales: {
+          x: { display: true, title: { display: true, text: 'Time' } },
+          y: { display: true, title: { display: true, text: 'Gyro Value' } }
+        }
+      }
+    });
+
+    // Update chart with new gyro data
+    function updateChart(time, x, y, z) {
+      if (gyroChart.data.labels.length > 20) {
+        gyroChart.data.labels.shift();
+        gyroChart.data.datasets[0].data.shift();
+        gyroChart.data.datasets[1].data.shift();
+        gyroChart.data.datasets[2].data.shift();
+      }
+      gyroChart.data.labels.push(time);
+      gyroChart.data.datasets[0].data.push(x);
+      gyroChart.data.datasets[1].data.push(y);
+      gyroChart.data.datasets[2].data.push(z);
+      gyroChart.update();
+    }
+
+    // Function to format time as HH:MM:SS AM/PM in UTC
+    function formatUTCTime(date) {
+      const hours = date.getUTCHours();
+      const minutes = date.getUTCMinutes();
+      const seconds = date.getUTCSeconds();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const formattedHours = hours % 12 || 12; // Convert to 12-hour format
+      const formattedMinutes = String(minutes).padStart(2, '0');
+      const formattedSeconds = String(seconds).padStart(2, '0');
+      return `${formattedHours}:${formattedMinutes}:${formattedSeconds} ${ampm}`;
+    }
+
+    // WebSocket event handling
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+
+      // Display date and time in readable format
+      const date = new Date(data.time);
+      dateDisplay.textContent = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      timeDisplay.textContent = formatUTCTime(date); // Use custom UTC format
+
+      // Update distance
+      distanceDisplay.textContent = data.distance;
+
+      // Update IR status
+      if (data.ir < 50) {
+        irStatus.textContent = 'Close';
+        irStatus.classList.remove('far');
+        irStatus.classList.add('close');
+      } else {
+        irStatus.textContent = 'Far';
+        irStatus.classList.remove('close');
+        irStatus.classList.add('far');
+      }
+
+      // Update gyro chart
+      updateChart(timeDisplay.textContent, data.gyro.x, data.gyro.y, data.gyro.z);
+    };
+  </script>
+</body>
+</html>

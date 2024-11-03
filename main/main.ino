@@ -9,11 +9,18 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include <WiFi.h>
+#include <HTTPClient.h>
+
+const char* ssid = "SK";
+const char* password = "sharletk";
+
 int LED_BUILTIN = 2;
 
 #define IR_SENSOR_PIN 36
-#define TRIG_US_SENSOR_PIN 25
-#define ECHO_US_SENSOR_PIN 26
+#define TRIG_US_SENSOR_PIN 32
+#define ECHO_US_SENSOR_PIN 33
+#define BUZZER_IO_PIN 25
 
 DS3231 rtc;
 // BMP280 bmp;
@@ -28,6 +35,43 @@ Adafruit_SSD1306 display(128, 64, &Wire, -1);
 #define DATAX0 0x32
 #define DATAY0 0x34
 #define DATAZ0 0x36
+
+void setRTCTime() {
+  // Convert the system compile date and time to DateTime format
+  DateTime now(
+    atoi(__DATE__ + 7),              // Year
+    getMonth(__DATE__),               // Month
+    atoi(__DATE__ + 4),               // Day
+    atoi(__TIME__),                   // Hour
+    atoi(__TIME__ + 3),               // Minute
+    atoi(__TIME__ + 6)                // Second
+  );
+  rtc.setEpoch(now.unixtime()); 
+}
+
+uint8_t getMonth(const char* monthStr) {
+  if (strncmp(monthStr, "Jan", 3) == 0) return 1;
+  if (strncmp(monthStr, "Feb", 3) == 0) return 2;
+  if (strncmp(monthStr, "Mar", 3) == 0) return 3;
+  if (strncmp(monthStr, "Apr", 3) == 0) return 4;
+  if (strncmp(monthStr, "May", 3) == 0) return 5;
+  if (strncmp(monthStr, "Jun", 3) == 0) return 6;
+  if (strncmp(monthStr, "Jul", 3) == 0) return 7;
+  if (strncmp(monthStr, "Aug", 3) == 0) return 8;
+  if (strncmp(monthStr, "Sep", 3) == 0) return 9;
+  if (strncmp(monthStr, "Oct", 3) == 0) return 10;
+  if (strncmp(monthStr, "Nov", 3) == 0) return 11;
+  if (strncmp(monthStr, "Dec", 3) == 0) return 12;
+  return 0;
+}
+
+String formatTwoDigits(int value) {
+  if (value < 10) {
+    return "0" + String(value);
+  } else {
+    return String(value);
+  }
+}
 
 void initADXL345() {
   pinMode(ADXL345_CS_PIN, OUTPUT);
@@ -85,10 +129,13 @@ void setup() {
   Serial.println("Hello from ESP32!");
   pinMode(TRIG_US_SENSOR_PIN, OUTPUT);
   pinMode(ECHO_US_SENSOR_PIN, INPUT);
+  pinMode(BUZZER_IO_PIN, OUTPUT);
   Wire.begin(); 
   //bmp.begin();
   SPI.begin();
   initADXL345();
+  setRTCTime();
+  Serial.println("RTC time set to current system time.");
 
   if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Replace 0x3C with your display's address
         Serial.println("Couldn't find SSD1306");
@@ -101,23 +148,20 @@ void setup() {
   display.setCursor(0, 0);
   display.print("Hello, World!"); // Test static text
   display.display();
+
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+  
+  digitalWrite(BUZZER_IO_PIN, LOW);
+  delay(1000);
+  digitalWrite(BUZZER_IO_PIN, HIGH);
 }
 
-void loop() {
-  // digitalWrite(LED_BUILTIN, HIGH);
-  int IR_SENSOR_OUT = analogRead(IR_SENSOR_PIN);
-  // Serial.println(IR_SENSOR_OUT);
-
-  if (IR_SENSOR_OUT < 50) {
-    Serial.println("Object Close");
-  }
-
-  DateTime dt = RTClib::now();
-  Serial.println(dt.second());
-
-  // uint32_t pressure = bmp.getPressure();
-  // Serial.println(pressure);
-
+int readUltrasonicDistance() {
   digitalWrite(TRIG_US_SENSOR_PIN, LOW);
   delayMicroseconds(2);
   digitalWrite(TRIG_US_SENSOR_PIN, HIGH);
@@ -126,6 +170,27 @@ void loop() {
   int duration = pulseIn(ECHO_US_SENSOR_PIN, HIGH);
   int distance = duration * 0.034 / 2;
   Serial.println("Distance: " + String(distance) + " cm");
+  return distance;
+}
+
+void loop() {
+  // digitalWrite(LED_BUILTIN, HIGH);
+  int IR_SENSOR_OUT = analogRead(IR_SENSOR_PIN);
+  // Serial.println(IR_SENSOR_OUT);
+  int distance = readUltrasonicDistance();
+
+  if (IR_SENSOR_OUT < 50) {
+    Serial.println("Object Close");
+    digitalWrite(BUZZER_IO_PIN, LOW);
+    delay(2000);
+    digitalWrite(BUZZER_IO_PIN, HIGH);
+  }
+
+  DateTime dt = RTClib::now();
+  Serial.println(dt.second());
+
+  // uint32_t pressure = bmp.getPressure();
+  // Serial.println(pressure);
 
   int16_t x, y, z;
 
@@ -142,6 +207,39 @@ void loop() {
   // display.print("Time: ");
   // display.print(dt.second());
   // display.display();
+
+    String timeString = String(dt.year()) + "-" + 
+                      formatTwoDigits(dt.month()) + "-" + 
+                      formatTwoDigits(dt.day()) + "T" + 
+                      formatTwoDigits(dt.hour()) + ":" + 
+                      formatTwoDigits(dt.minute()) + ":" + 
+                      formatTwoDigits(dt.second()) + "Z";
+
+
+   // Create JSON object for transmission
+     String jsonData = "{\"time\":\"" + timeString + "\",\"distance\":" + 
+                      String(distance) + ",\"ir\":" + 
+                      String(IR_SENSOR_OUT) + 
+                      ",\"gyro\":{\"x\":" + String(x) + 
+                      ",\"y\":" + String(y) + 
+                      ",\"z\":" + String(z) + "}}";
+
+    // Send data to Node.js server
+    if (WiFi.status() == WL_CONNECTED) {
+        HTTPClient http;
+        http.begin("http://192.168.137.1:3000/data"); // Change localhost to your server's IP if needed
+        http.addHeader("Content-Type", "application/json");
+
+        int httpResponseCode = http.POST(jsonData);
+        if (httpResponseCode > 0) {
+            String response = http.getString(); // Get the response
+            Serial.println(response); // Print response
+        } else {
+            Serial.printf("Error on sending POST: %s\n", http.errorToString(httpResponseCode).c_str());
+        }
+
+        http.end(); // Close connection
+    }
 
   delay(1000);
 }
