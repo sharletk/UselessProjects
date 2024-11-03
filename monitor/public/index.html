@@ -52,6 +52,7 @@
       <div class="status">Time: <span id="time"></span></div>
       <div class="status">Distance: <span id="distance"></span> cm</div>
       <div class="status ir-status">IR Status: <span id="ir-status">Far</span></div>
+      <div class="status">Temperature: <span id="temperature"></span> °C</div> <!-- New temperature status -->
     </div>
     <canvas id="gyroChart" width="400" height="150"></canvas>
   </div>
@@ -66,6 +67,7 @@
     const dateDisplay = document.getElementById('date');
     const distanceDisplay = document.getElementById('distance');
     const irStatus = document.getElementById('ir-status');
+    const temperatureDisplay = document.getElementById('temperature'); // Temperature display element
 
     // Chart configuration
     const ctx = document.getElementById('gyroChart').getContext('2d');
@@ -136,6 +138,9 @@
         irStatus.classList.remove('close');
         irStatus.classList.add('far');
       }
+
+      // Update temperature
+      temperatureDisplay.textContent = data.temperature.toFixed(2); // Display temperature with 2 decimal points
 
       // Update gyro chart
       updateChart(timeDisplay.textContent, data.gyro.x, data.gyro.y, data.gyro.z);

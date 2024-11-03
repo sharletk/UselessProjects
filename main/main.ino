@@ -155,10 +155,6 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi");
-  
-  digitalWrite(BUZZER_IO_PIN, LOW);
-  delay(1000);
-  digitalWrite(BUZZER_IO_PIN, HIGH);
 }
 
 int readUltrasonicDistance() {
@@ -182,7 +178,7 @@ void loop() {
   if (IR_SENSOR_OUT < 50) {
     Serial.println("Object Close");
     digitalWrite(BUZZER_IO_PIN, LOW);
-    delay(2000);
+    delay(1000);
     digitalWrite(BUZZER_IO_PIN, HIGH);
   }
 
@@ -202,44 +198,47 @@ void loop() {
   Serial.print(" | Y: "); Serial.print(y);
   Serial.print(" | Z: "); Serial.println(z);
 
+  // Read temperature from DS3231
+  float temperature = rtc.getTemperature();
+  Serial.println("Temp: " + String(temperature));
+
   // display.clearDisplay();
   // display.setCursor(0, 0);
   // display.print("Time: ");
   // display.print(dt.second());
   // display.display();
 
-    String timeString = String(dt.year()) + "-" + 
+  // Create formatted time string
+  String timeString = String(dt.year()) + "-" + 
                       formatTwoDigits(dt.month()) + "-" + 
                       formatTwoDigits(dt.day()) + "T" + 
                       formatTwoDigits(dt.hour()) + ":" + 
                       formatTwoDigits(dt.minute()) + ":" + 
                       formatTwoDigits(dt.second()) + "Z";
 
+  // Create JSON object for transmission
+  String jsonData = "{\"time\":\"" + timeString + "\",\"distance\":" + 
+                    String(distance) + ",\"ir\":" + 
+                    String(IR_SENSOR_OUT) + 
+                    ",\"gyro\":{\"x\":" + String(x) + 
+                    ",\"y\":" + String(y) + 
+                    ",\"z\":" + String(z) + 
+                    "},\"temperature\":" + String(temperature) + "}";
+  
+  // Send data to Node.js server
+  if (WiFi.status() == WL_CONNECTED) {
+      HTTPClient http;
+      http.begin("http://192.168.137.1:3000/data"); // Change localhost to your server's IP if needed
+      http.addHeader("Content-Type", "application/json");
 
-   // Create JSON object for transmission
-     String jsonData = "{\"time\":\"" + timeString + "\",\"distance\":" + 
-                      String(distance) + ",\"ir\":" + 
-                      String(IR_SENSOR_OUT) + 
-                      ",\"gyro\":{\"x\":" + String(x) + 
-                      ",\"y\":" + String(y) + 
-                      ",\"z\":" + String(z) + "}}";
+      int httpResponseCode = http.POST(jsonData);
+      if (httpResponseCode > 0) {
+          String response = http.getString(); // Get the response
+          Serial.println(response); // Print response
+      } else {
+          Serial.printf("Error on sending POST: %s\n", http.errorToString(httpResponseCode).c_str());
+      }
 
-    // Send data to Node.js server
-    if (WiFi.status() == WL_CONNECTED) {
-        HTTPClient http;
-        http.begin("http://192.168.137.1:3000/data"); // Change localhost to your server's IP if needed
-        http.addHeader("Content-Type", "application/json");
-
-        int httpResponseCode = http.POST(jsonData);
-        if (httpResponseCode > 0) {
-            String response = http.getString(); // Get the response
-            Serial.println(response); // Print response
-        } else {
-            Serial.printf("Error on sending POST: %s\n", http.errorToString(httpResponseCode).c_str());
-        }
-
-        http.end(); // Close connection
-    }
-
-  delay(1000);
+      http.end(); // Close connection
+  }
 }
