@@ -6,18 +6,21 @@
 #include <Adafruit_ADXL345_U.h>
 #include <SPI.h>
 
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
 int LED_BUILTIN = 2;
 
 #define IR_SENSOR_PIN 36
 #define TRIG_US_SENSOR_PIN 25
 #define ECHO_US_SENSOR_PIN 26
-#define GYRO_CS_PIN 5
 
 DS3231 rtc;
-BMP280 bmp;
+// BMP280 bmp;
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
 
-#define ADXL345_CS_PIN 5        // Chip Select pin for ADXL345
-#define ADXL345_SPI_CLOCK 500000 // SPI clock speed for ADXL345
+#define ADXL345_CS_PIN 5
+#define ADXL345_SPI_CLOCK 500000
 
 // ADXL345 Register Addresses
 #define POWER_CTL 0x2D
@@ -86,7 +89,18 @@ void setup() {
   //bmp.begin();
   SPI.begin();
   initADXL345();
-  delay(100);
+
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Replace 0x3C with your display's address
+        Serial.println("Couldn't find SSD1306");
+        while (1);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(1); // Set text size
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.print("Hello, World!"); // Test static text
+  display.display();
 }
 
 void loop() {
@@ -123,5 +137,11 @@ void loop() {
   Serial.print(" | Y: "); Serial.print(y);
   Serial.print(" | Z: "); Serial.println(z);
 
-  delay(500);
+  // display.clearDisplay();
+  // display.setCursor(0, 0);
+  // display.print("Time: ");
+  // display.print(dt.second());
+  // display.display();
+
+  delay(1000);
 }
