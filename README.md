@@ -90,21 +90,21 @@ Introducing "FitBit for Fauna" — a real-time system that monitors wildlife mov
 ##### Screenshots  
 
 1. **Dashboard View**  
-   ![Screenshot1](Add screenshot 1 here with proper name)  
+   ![Dashboard](https://raw.githubusercontent.com/sharletk/UselessProjects/refs/heads/master/assets/Dashboard.jpg)  
    *This screenshot shows the real-time dashboard displaying wildlife sensor data, including temperature, pressure, and gyroscope readings.*  
 
 2. **Graph Visualization**  
-   ![Screenshot2](Add screenshot 2 here with proper name)  
+   ![Visualization](https://raw.githubusercontent.com/sharletk/UselessProjects/refs/heads/master/assets/Visualization.jpg)
    *This image highlights the Chart.js implementation, plotting sensor data over time for easy analysis.*  
 
 3. **WebSocket Connection Status**  
-   ![Screenshot3](Add screenshot 3 here with proper name)  
+   ![WebSocket](https://raw.githubusercontent.com/sharletk/UselessProjects/refs/heads/master/assets/WebSocket.jpg)
    *This screenshot displays the WebSocket connection established between the ESP32 and the server, confirming successful data transmission.*  
 
 ##### Diagrams  
 
 1. **Workflow Diagram**  
-   ![Workflow](Add your workflow/architecture diagram here)  
+   ![Workflow](https://raw.githubusercontent.com/sharletk/UselessProjects/refs/heads/master/assets/Workflow.png)  
    *This diagram explains the system architecture, showing how data flows from hardware sensors to the ESP32, then to the server, and finally to the web interface for visualization.*  
 
 #### For Hardware:  
